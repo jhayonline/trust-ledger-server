@@ -37,28 +37,24 @@ VALUES('Ama Mensah',
 26,
 26,
 'active',
-now())(
-  'Adwoa Asante',
-  '0242345678',
-  85,
-  1,
-  2210,
-  22,
-  26,
-  'active',
-  now()
-),
-(
-  'Akua Boateng',
-  '0243456789',
-  62,
-  1,
-  1560,
-  16,
-  26,
-  'active',
-  now()
-);
+now())('Adwoa Asante',
+'0242345678',
+85,
+1,
+2210,
+22,
+26,
+'active',
+now()),
+('Akua Boateng',
+'0243456789',
+62,
+1,
+1560,
+16,
+26,
+'active',
+now());
 -- Insert a second group
 INSERT INTO GROUPS(
   name,
@@ -98,17 +94,15 @@ VALUES('Kwame Asante',
 30,
 30,
 'active',
-now())(
-  'Kofi Boateng',
-  '0202345678',
-  73,
-  2,
-  4380,
-  22,
-  30,
-  'active',
-  now()
-);
+now())('Kofi Boateng',
+'0202345678',
+73,
+2,
+4380,
+22,
+30,
+'active',
+now());
 -- Update group member counts
 UPDATE GROUPS
 SET member_count = 3
@@ -129,6 +123,7 @@ SET total_contributed = 10380
 WHERE
   id = 2;
 -- 6000 + 4380
+-- Insert a transaction (fixed: removed DATE after status)
 INSERT INTO transactions(member_id,
 member_name,
 group_id,
@@ -164,17 +159,15 @@ INSERT INTO GROUPS(
   is_active,
   created_at
 )
-VALUES(
-  3,
-  'Test Payout Group',
-  'TEST',
-  'For testing payouts',
-  1,
-  'weekly',
-  '2026-06-01 00:00:00',
-  TRUE,
-  now()
-);
+VALUES(3,
+'Test Payout Group',
+'TEST',
+'For testing payouts',
+1,
+'weekly',
+'2026-06-01 00:00:00',
+TRUE,
+now());
 -- Insert test members
 INSERT INTO members(
   name,
@@ -187,28 +180,23 @@ INSERT INTO members(
   status,
   joined_at
 )
-VALUES(
-  'Test User 1',
-  '0532423078',
-  100,
-  3,
-  5,
-  5,
-  5,
-  'active',
-  now()
-),
-(
-  'Test User 2',
-  '0241234567',
-  100,
-  3,
-  3,
-  3,
-  3,
-  'active',
-  now()
-);
+VALUES('Test User 1',
+'0532423078',
+100,
+3,
+5,
+5,
+5,
+'active',
+now())('Test User 2',
+'0241234567',
+100,
+3,
+3,
+3,
+3,
+'active',
+now());
 -- Update group counts
 UPDATE GROUPS
 SET member_count = 2,
@@ -228,9 +216,28 @@ FROM
   members
 WHERE
   group_id = 3;
-
-INSERT INTO trust_score_history (member_id, score, change, reason, date, created_at)
-VALUES 
-  (9, 100, 0, 'Initial trust score', '2026-06-01 00:00:00', now()),
-  (9, 100, 0, 'On-time contribution', '2026-06-07 00:00:00', now()),
-  (9, 100, 0, 'On-time contribution', '2026-06-14 00:00:00', now());
+-- Insert trust score history for a valid member (member_id = 1 exists)
+INSERT INTO trust_score_history(
+  member_id,
+  score,
+  change,
+  reason DATE,
+  created_at
+)
+VALUES(1,
+100,
+0,
+'Initial trust score',
+'2026-06-01 00:00:00',
+now())(1,
+100,
+0,
+'On-time contribution',
+'2026-06-07 00:00:00',
+now()),
+(1,
+100,
+0,
+'On-time contribution',
+'2026-06-14 00:00:00',
+now());

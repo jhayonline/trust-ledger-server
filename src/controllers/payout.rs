@@ -45,7 +45,7 @@ pub async fn trigger(
     let moolre_user = std::env::var("MOOLRE_API_USER").unwrap_or_else(|_| "jhayonline".to_string());
     let moolre_key = std::env::var("MOOLRE_API_KEY").unwrap_or_else(|_| "".to_string());
     let account_number =
-        std::env::var("MOOLRE_ACCOUNT_NUMBER").unwrap_or_else(|_| "10878506070909".to_string());
+        std::env::var("MOOLRE_ACCOUNT_NUMBER").unwrap_or_else(|_| "10878506070937".to_string());
 
     let client = Client::new();
     let mut failed_members = Vec::new();
@@ -101,11 +101,14 @@ pub async fn trigger(
                 let txstatus = response_body
                     .get("data")
                     .and_then(|d| d.get("txstatus"))
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("2");
+                    .and_then(|s| s.as_i64())
+                    .unwrap_or(2);
 
-                if txstatus == "1" {
+                if txstatus == 1 {
                     tracing::info!("Payout successful for {}", member.name);
+                } else if txstatus == 0 {
+                    tracing::info!("Payout pending for {} (sandbox processing)", member.name);
+                    // in sandbox, 0 means initiated successfully
                 } else {
                     tracing::error!("Payout failed for {}: {:?}", member.name, response_body);
                     failed_members.push(member.name.clone());
