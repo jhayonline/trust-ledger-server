@@ -1,0 +1,74 @@
+-- ============================================================
+-- TrustLedger Seed Data
+-- ============================================================
+
+-- ============================================================
+-- 1. GROUPS
+-- ============================================================
+INSERT INTO groups (id, name, code, description, member_count, total_contributed, contribution_amount, frequency, next_payout_date, is_active, created_at)
+VALUES 
+  (1, 'Makola Traders', 'MKL', 'Market women savings group at Makola Market', 3, 6370, 100, 'weekly', '2026-07-15 00:00:00', true, now()),
+  (2, 'Abossey Okai Spare Parts', 'AOS', 'Spare parts dealers savings collective', 2, 10380, 200, 'monthly', '2026-07-08 00:00:00', true, now()),
+  (3, 'Test Payout Group', 'TEST', 'For testing payouts and contributions', 1, 5, 1, 'weekly', '2026-07-10 00:00:00', true, now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 2. MEMBERS
+-- ============================================================
+INSERT INTO members (id, name, phone, trust_score, group_id, total_contributed, on_time_payments, total_payments, status, joined_at)
+VALUES 
+  (1, 'Ama Mensah', '0241234567', 100, 1, 2600, 26, 26, 'active', now()),
+  (2, 'Adwoa Asante', '0242345678', 92, 1, 2392, 24, 26, 'active', now()),
+  (3, 'Akua Boateng', '0243456789', 85, 1, 2210, 22, 26, 'active', now()),
+  (4, 'Kwame Asante', '0201234567', 100, 2, 6000, 30, 30, 'active', now()),
+  (5, 'Kofi Boateng', '0202345678', 87, 2, 5220, 26, 30, 'active', now()),
+  (6, 'Test Member', '0532423078', 100, 3, 5, 5, 5, 'active', now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 3. TRUST SCORE HISTORY
+-- ============================================================
+INSERT INTO trust_score_history (member_id, score, change, reason, date, created_at)
+VALUES 
+  (1, 100, 0, 'Initial trust score', now(), now()),
+  (1, 100, 0, 'On-time contribution', now(), now()),
+  (2, 92, 0, 'Initial trust score', now(), now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 4. CONTRIBUTIONS
+-- ============================================================
+INSERT INTO contributions (member_id, group_id, amount, status, date)
+VALUES 
+  (1, 1, 100, 'completed', now()),
+  (2, 1, 100, 'completed', now()),
+  (3, 1, 100, 'completed', now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 5. TRANSACTIONS
+-- ============================================================
+INSERT INTO transactions (member_id, member_name, group_id, group_name, amount, type, status, date)
+VALUES 
+  (1, 'Ama Mensah', 1, 'Makola Traders', 100, 'contribution', 'completed', now()),
+  (2, 'Adwoa Asante', 1, 'Makola Traders', 100, 'contribution', 'completed', now()),
+  (3, 'Akua Boateng', 1, 'Makola Traders', 100, 'contribution', 'completed', now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 6. VERIFY DATA
+-- ============================================================
+SELECT '=== GROUPS ===' as "";
+SELECT id, name, code, member_count, total_contributed FROM groups;
+
+SELECT '=== MEMBERS ===' as "";
+SELECT id, name, phone, trust_score, group_id FROM members;
+
+SELECT '=== TRUST SCORE HISTORY ===' as "";
+SELECT id, member_id, score, reason FROM trust_score_history;
+
+SELECT '=== CONTRIBUTIONS ===' as "";
+SELECT id, member_id, group_id, amount, status FROM contributions;
+
+SELECT '=== TRANSACTIONS ===' as "";
+SELECT id, member_name, group_name, amount, type, status FROM transactions;

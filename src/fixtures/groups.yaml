@@ -1,0 +1,39 @@
+---
+# Group 1 - Makola Traders
+- id: 1
+  name: Makola Traders
+  code: MKL
+  description: Market women savings group at Makola Market
+  member_count: 3
+  total_contributed: 6370
+  contribution_amount: 100
+  frequency: weekly
+  next_payout_date: '2026-07-15T00:00:00.000Z'
+  is_active: true
+  created_at: '2026-07-11T00:00:00.000Z'
+
+# Group 2 - Abossey Okai Spare Parts
+- id: 2
+  name: Abossey Okai Spare Parts
+  code: AOS
+  description: Spare parts dealers savings collective
+  member_count: 2
+  total_contributed: 10380
+  contribution_amount: 200
+  frequency: monthly
+  next_payout_date: '2026-07-08T00:00:00.000Z'
+  is_active: true
+  created_at: '2026-07-11T00:00:00.000Z'
+
+# Group 3 - Test Payout Group
+- id: 3
+  name: Test Payout Group
+  code: TEST
+  description: For testing payouts and contributions
+  member_count: 1
+  total_contributed: 5
+  contribution_amount: 1
+  frequency: weekly
+  next_payout_date: '2026-07-10T00:00:00.000Z'
+  is_active: true
+  created_at: '2026-07-11T00:00:00.000Z'
