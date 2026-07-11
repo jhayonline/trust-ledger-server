@@ -15,3 +15,4 @@ pub mod member_contribute;
 pub mod member_savings;
 pub mod member_trust_score;
 pub mod member_transactions;
+pub mod member_profile;
