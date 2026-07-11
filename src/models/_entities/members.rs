@@ -20,6 +20,8 @@ pub struct Model {
     pub joined_at: Option<DateTime>,
     pub otp_code: Option<String>,
     pub otp_expires_at: Option<DateTime>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub profile_picture: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
