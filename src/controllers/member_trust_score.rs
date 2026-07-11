@@ -2,11 +2,12 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
+use crate::controllers::trust_score_utils::calculate_trust_score;
 use crate::models::_entities::{members, trust_score_history};
-use loco_rs::prelude::*;
-use sea_orm::{ActiveValue::Set, EntityTrait, QueryFilter, ColumnTrait, QueryOrder};
-use serde::Serialize;
 use chrono::Utc;
+use loco_rs::prelude::*;
+use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct TrustScoreHistoryResponse {
@@ -34,34 +35,43 @@ pub async fn history(
     State(ctx): State<AppContext>,
 ) -> Result<Json<TrustScoreSummary>> {
     // Get member ID from JWT claims
-    let member_id: i32 = auth.claims.pid.parse().map_err(|_| Error::Unauthorized("Invalid member ID".to_string()))?;
-    
+    let member_id: i32 = auth
+        .claims
+        .pid
+        .parse()
+        .map_err(|_| Error::Unauthorized("Invalid member ID".to_string()))?;
+
+    // Get fresh trust score calculation
+    let current_score = calculate_trust_score(&ctx.db, member_id).await?;
+
     // Get member details
     let member = members::Entity::find_by_id(member_id)
         .one(&ctx.db)
         .await?
         .ok_or_else(|| Error::NotFound)?;
-    
-    let current_score = member.trust_score.unwrap_or(100);
-    
+
     // Get trust score history
     let history_records = trust_score_history::Entity::find()
         .filter(trust_score_history::Column::MemberId.eq(member_id))
         .order_by_desc(trust_score_history::Column::Date)
         .all(&ctx.db)
         .await?;
-    
+
     let mut history_responses = Vec::new();
     let mut highest = current_score;
     let mut lowest = current_score;
-    let mut sum = 0i64;
-    
+    let mut sum = current_score as i64;
+
     for record in &history_records {
         let score = record.score;
-        if score > highest { highest = score; }
-        if score < lowest { lowest = score; }
+        if score > highest {
+            highest = score;
+        }
+        if score < lowest {
+            lowest = score;
+        }
         sum += score as i64;
-        
+
         history_responses.push(TrustScoreHistoryResponse {
             id: record.id,
             score: record.score,
@@ -70,13 +80,13 @@ pub async fn history(
             date: record.date.to_string(),
         });
     }
-    
+
     let average_score = if history_records.is_empty() {
         current_score as f64
     } else {
-        sum as f64 / history_records.len() as f64
+        sum as f64 / (history_records.len() + 1) as f64
     };
-    
+
     // Calculate on-time percentage from member stats
     let total_payments = member.total_payments.unwrap_or(0);
     let on_time_payments = member.on_time_payments.unwrap_or(0);
@@ -85,13 +95,14 @@ pub async fn history(
     } else {
         100.0
     };
-    
-    let total_contributions = member.total_contributed
+
+    let total_contributions = member
+        .total_contributed
         .unwrap_or(Decimal::ZERO)
         .to_string()
         .parse::<i64>()
         .unwrap_or(0);
-    
+
     Ok(Json(TrustScoreSummary {
         current_score,
         highest_score: highest,

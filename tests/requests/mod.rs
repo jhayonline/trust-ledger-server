@@ -18,3 +18,4 @@ pub mod member_trust_score;
 pub mod member_transactions;
 pub mod member_profile;
 pub mod contribution_verify;
+pub mod member_auth_helper;

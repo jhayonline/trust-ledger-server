@@ -2,6 +2,7 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
+use crate::controllers::trust_score_utils::update_trust_score_for_payout;
 use crate::models::_entities::{groups, members, transactions};
 use chrono::Utc;
 use loco_rs::prelude::*;
@@ -105,7 +106,10 @@ pub async fn trigger(
                     .unwrap_or(2);
 
                 if txstatus == 1 {
-                    tracing::info!("Payout successful for {}", member.name);
+                    match update_trust_score_for_payout(&ctx.db, member.id).await {
+                        Ok(_) => tracing::info!("Trust score updated for payout: {}", member.id),
+                        Err(e) => tracing::error!("Failed to update trust score: {}", e),
+                    }
                 } else if txstatus == 0 {
                     tracing::info!("Payout pending for {} (sandbox processing)", member.name);
                     // in sandbox, 0 means initiated successfully

@@ -2,6 +2,9 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
+use crate::controllers::trust_score_utils::{
+    update_trust_score_for_contribution, update_trust_score_for_missed_payment,
+};
 use crate::models::_entities::{contributions, groups, members};
 use chrono::Utc;
 use loco_rs::prelude::*;
@@ -142,6 +145,23 @@ pub async fn contribute(
                     .unwrap_or(Some(Decimal::ZERO))
                     .unwrap_or(Decimal::ZERO);
                 member_active.total_contributed = Set(Some(current_member_total + amount_decimal));
+
+                // Update on_time_payments
+                let current_on_time = member_active
+                    .on_time_payments
+                    .take()
+                    .unwrap_or(Some(0))
+                    .unwrap_or(0);
+                member_active.on_time_payments = Set(Some(current_on_time + 1));
+
+                // Update total_payments
+                let current_total_payments = member_active
+                    .total_payments
+                    .take()
+                    .unwrap_or(Some(0))
+                    .unwrap_or(0);
+                member_active.total_payments = Set(Some(current_total_payments + 1));
+
                 member_active.update(&ctx.db).await?;
 
                 // Update group's total contributed
@@ -155,8 +175,36 @@ pub async fn contribute(
                 group_active.total_contributed = Set(Some(new_total));
                 group_active.update(&ctx.db).await?;
 
+                // Update trust score
+                let was_on_time = true; // Contributions are always on-time if completed
+                match update_trust_score_for_contribution(&ctx.db, member_id, was_on_time).await {
+                    Ok(_) => tracing::info!("Trust score updated for member {}", member_id),
+                    Err(e) => tracing::error!("Failed to update trust score: {}", e),
+                }
+
                 Some("success".to_string())
+            } else if status == "0" {
+                // Payment pending - don't update anything yet
+                Some(format!("pending: {:?}", resp_body))
             } else {
+                // Payment failed - increment total_payments but not on_time
+                let mut member_active: members::ActiveModel = member.clone().into();
+                let current_total_payments = member_active
+                    .total_payments
+                    .take()
+                    .unwrap_or(Some(0))
+                    .unwrap_or(0);
+                member_active.total_payments = Set(Some(current_total_payments + 1));
+                member_active.update(&ctx.db).await?;
+
+                // Update trust score for missed payment
+                match update_trust_score_for_missed_payment(&ctx.db, member_id).await {
+                    Ok(_) => {
+                        tracing::info!("Trust score updated for missed payment: {}", member_id)
+                    }
+                    Err(e) => tracing::error!("Failed to update trust score: {}", e),
+                }
+
                 Some(format!("failed: {:?}", resp_body))
             }
         }

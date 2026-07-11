@@ -2,9 +2,10 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
-use crate::models::_entities::{members, groups, contributions};
+use crate::controllers::trust_score_utils::calculate_trust_score;
+use crate::models::_entities::{contributions, groups, members};
 use loco_rs::prelude::*;
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QuerySelect, PaginatorTrait, QueryOrder};
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -41,18 +42,25 @@ pub async fn dashboard(
     State(ctx): State<AppContext>,
 ) -> Result<Json<MemberDashboardResponse>> {
     // Get member ID from JWT claims
-    let member_id: i32 = auth.claims.pid.parse().map_err(|_| Error::Unauthorized("Invalid member ID".to_string()))?;
-    
+    let member_id: i32 = auth
+        .claims
+        .pid
+        .parse()
+        .map_err(|_| Error::Unauthorized("Invalid member ID".to_string()))?;
+
     tracing::info!("Member dashboard requested for member_id: {}", member_id);
-    
+
     // Get member details
     let member = members::Entity::find_by_id(member_id)
         .one(&ctx.db)
         .await?
         .ok_or_else(|| Error::NotFound)?;
-    
+
     tracing::info!("Member found: {}", member.id);
-    
+
+    // Get fresh trust score
+    let trust_score = calculate_trust_score(&ctx.db, member_id).await?;
+
     // Get all contributions by this member (join with groups table)
     let contributions_list = contributions::Entity::find()
         .filter(contributions::Column::MemberId.eq(member_id))
@@ -61,9 +69,9 @@ pub async fn dashboard(
         .limit(10)
         .all(&ctx.db)
         .await?;
-    
+
     tracing::info!("Contributions found: {}", contributions_list.len());
-    
+
     let recent_contributions: Vec<RecentContribution> = contributions_list
         .into_iter()
         .filter_map(|(contribution, group)| {
@@ -71,7 +79,7 @@ pub async fn dashboard(
                 let amount_str = contribution.amount.to_string();
                 let amount_int = amount_str.parse::<i64>().unwrap_or(0);
                 let date_str = contribution.date.map(|d| d.to_string()).unwrap_or_default();
-                
+
                 RecentContribution {
                     id: contribution.id,
                     group_name: g.name,
@@ -82,7 +90,7 @@ pub async fn dashboard(
             })
         })
         .collect();
-    
+
     // Get all groups this member belongs to (only those with non-NULL group_id)
     let member_groups = members::Entity::find()
         .filter(members::Column::Id.eq(member_id))
@@ -90,11 +98,11 @@ pub async fn dashboard(
         .find_also_related(groups::Entity)
         .all(&ctx.db)
         .await?;
-    
+
     tracing::info!("Member groups found: {}", member_groups.len());
-    
+
     let active_groups_count = member_groups.len() as i32;
-    
+
     // Calculate total savings (sum of all contributions)
     let total_savings: i64 = contributions::Entity::find()
         .filter(contributions::Column::MemberId.eq(member_id))
@@ -106,28 +114,28 @@ pub async fn dashboard(
         .await?
         .flatten()
         .unwrap_or(0);
-    
+
     tracing::info!("Total savings: {}", total_savings);
-    
+
     // Calculate total contributions count
     let total_contributions_count = contributions::Entity::find()
         .filter(contributions::Column::MemberId.eq(member_id))
         .filter(contributions::Column::Status.eq("completed"))
         .count(&ctx.db)
         .await?;
-    
+
     tracing::info!("Total contributions count: {}", total_contributions_count);
-    
+
     // Get upcoming payouts for groups where member is active
     let mut upcoming_payouts = Vec::new();
-    
+
     for (_member_record, group_opt) in &member_groups {
         if let Some(group) = group_opt {
             // Check if payout date is in the future
             let today = chrono::Utc::now().naive_utc();
             if group.next_payout_date > today {
                 let my_turn = get_member_turn_position(&ctx.db, member_id, group.id).await?;
-                
+
                 upcoming_payouts.push(UpcomingPayout {
                     group_id: group.id,
                     group_name: group.name.clone(),
@@ -139,9 +147,6 @@ pub async fn dashboard(
         }
     }
 
-    let trust_score = member.trust_score.unwrap_or(100);
-    tracing::info!("Trust score: {}", trust_score);
-
     let response = MemberDashboardResponse {
         total_savings,
         active_groups: active_groups_count,
@@ -150,24 +155,28 @@ pub async fn dashboard(
         recent_contributions,
         upcoming_payouts,
     };
-    
+
     Ok(Json(response))
 }
 
 // Helper function to get member's turn position in a rotating group
-async fn get_member_turn_position(db: &sea_orm::DatabaseConnection, member_id: i32, group_id: i32) -> Result<Option<i32>> {
+async fn get_member_turn_position(
+    db: &sea_orm::DatabaseConnection,
+    member_id: i32,
+    group_id: i32,
+) -> Result<Option<i32>> {
     let all_members = members::Entity::find()
         .filter(members::Column::GroupId.eq(group_id))
         .order_by_asc(members::Column::JoinedAt)
         .all(db)
         .await?;
-    
+
     for (index, member) in all_members.iter().enumerate() {
         if member.id == member_id {
             return Ok(Some((index + 1) as i32));
         }
     }
-    
+
     Ok(None)
 }
 
