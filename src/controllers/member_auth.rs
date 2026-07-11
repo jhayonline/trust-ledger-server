@@ -2,12 +2,12 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
-use loco_rs::prelude::*;
-use loco_rs::auth::jwt;
 use crate::models::_entities::members;
-use sea_orm::{ActiveValue::Set, EntityTrait, QueryFilter, ColumnTrait};
+use chrono::{Duration, Utc};
+use loco_rs::auth::jwt;
+use loco_rs::prelude::*;
 use rand::prelude::*;
-use chrono::{Utc, Duration};
+use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -99,7 +99,7 @@ pub async fn send_otp(
     let otp_code = generate_otp();
     let expires_at = Utc::now() + Duration::minutes(10);
     let expires_at_naive = expires_at.naive_utc();
-    
+
     if let Some(existing_member) = member {
         // Update existing member with OTP
         let mut active: members::ActiveModel = existing_member.into();
@@ -112,7 +112,7 @@ pub async fn send_otp(
         // For now, create without group (group_id = 0 or NULL)
         let new_member = members::ActiveModel {
             phone: Set(phone.clone()),
-            name: Set(format!("Member_{}", &phone[phone.len()-4..])),
+            name: Set(format!("Member_{}", &phone[phone.len() - 4..])),
             trust_score: Set(Some(100)),
             group_id: Set(None),
             total_contributed: Set(Some(Default::default())),
@@ -129,7 +129,10 @@ pub async fn send_otp(
     }
 
     // Send OTP via SMS
-    let message = format!("Your TrustLedger verification code is: {}. Valid for 10 minutes.", otp_code);
+    let message = format!(
+        "Your TrustLedger verification code is: {}. Valid for 10 minutes.",
+        otp_code
+    );
 
     match send_sms(&phone, &message).await {
         Ok(_) => {
@@ -166,8 +169,13 @@ pub async fn verify_otp(
         .ok_or_else(|| Error::Unauthorized("Member not found".to_string()))?;
 
     // Check OTP
-    let stored_otp = member.otp_code.as_deref().ok_or_else(|| Error::Unauthorized("No OTP requested".to_string()))?;
-    let expires_at = member.otp_expires_at.ok_or_else(|| Error::Unauthorized("OTP expired".to_string()))?;
+    let stored_otp = member
+        .otp_code
+        .as_deref()
+        .ok_or_else(|| Error::Unauthorized("No OTP requested".to_string()))?;
+    let expires_at = member
+        .otp_expires_at
+        .ok_or_else(|| Error::Unauthorized("OTP expired".to_string()))?;
 
     if Utc::now().naive_utc() > expires_at {
         return Err(Error::Unauthorized("OTP expired".to_string()));
@@ -185,7 +193,11 @@ pub async fn verify_otp(
 
     // Generate JWT token for member using member id as claim
     let jwt_secret = ctx.config.get_jwt_config()?;
-    let claims = serde_json::Map::new();
+    let mut claims = serde_json::Map::new();
+    claims.insert(
+        "member_id".to_string(),
+        serde_json::Value::Number(serde_json::Number::from(updated_member.id)),
+    );
     let token = jwt::JWT::new(&jwt_secret.secret)
         .generate_token(jwt_secret.expiration, updated_member.id.to_string(), claims)
         .map_err(|_| Error::Unauthorized("Token generation failed".to_string()))?;
