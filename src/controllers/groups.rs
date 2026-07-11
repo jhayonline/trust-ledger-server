@@ -19,8 +19,8 @@ pub struct CreateGroupParams {
 
 #[derive(Debug, Deserialize)]
 pub struct AddMemberParams {
-    pub name: string,
-    pub phone: string,
+    pub name: String,
+    pub phone: String,
 }
 
 #[debug_handler]
